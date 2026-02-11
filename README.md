@@ -32,28 +32,44 @@ Django only verifies Clerk-issued JWT tokens.
 ## Project Structure
 
 nirnaya-vidhi-ai/
+│
+├── api/                         # Main Django app (business logic layer)
+│   │
+│   ├── __init__.py
+│   ├── admin.py
+│   ├── apps.py
+│   ├── authentication.py        # Clerk JWT authentication class
+│   ├── models.py                # Database models
+│   ├── serializers.py           # DRF serializers
+│   ├── tests.py
+│   ├── urls.py                  # App-level URL routing
+│   │
+│   ├── views/                   # API view layer (thin controllers)
+│   │   ├── rag_views.py         # RAG endpoints
+│   │   └── system_views.py      # Health & status endpoints
+│   │
+│   ├── services/                # Business logic layer
+│   │   ├── llm_service.py       # LLM interaction logic
+│   │   └── vector_service.py    # Vector search & embeddings logic
+│   │
+│   └── migrations/              # Django migrations
+│       └── __init__.py
+│
+├── core/                        # Django project configuration
+│   ├── __init__.py
+│   ├── settings.py              # Global settings
+│   ├── urls.py                  # Root URL configuration
+│   ├── asgi.py                  # ASGI entrypoint
+│   └── wsgi.py                  # WSGI entrypoint
+│
+├── manage.py                    # Django CLI entrypoint
+├── requirements.txt             # Python dependencies
+├── test_db.py                   # Manual DB test script
+├── test_llm.py                  # Manual LLM test script
+├── .env                         # Environment variables (not committed)
+├── .gitignore
+└── venv/                        # Virtual environment (not committed)
 
-api/
-- authentication.py → Clerk JWT verification
-- models.py → Database models
-- serializers.py → DRF serializers
-- urls.py → App routing
-
-api/views/
-- rag_views.py → RAG endpoints
-- system_views.py → Health & status endpoints
-
-api/services/
-- llm_service.py → LLM interaction logic
-- vector_service.py → Vector search logic
-
-core/
-- settings.py → Project settings
-- urls.py → Root URL config
-- asgi.py / wsgi.py → Deployment entrypoints
-
-manage.py
-requirements.txt
 
 ---
 
