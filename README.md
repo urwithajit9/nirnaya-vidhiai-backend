@@ -30,7 +30,7 @@ Django only verifies Clerk-issued JWT tokens.
 ---
 
 ## Project Structure
-
+```txt
 nirnaya-vidhi-ai/
 │
 ├── api/                         # Main Django app (business logic layer)
@@ -69,7 +69,7 @@ nirnaya-vidhi-ai/
 ├── .env                         # Environment variables (not committed)
 ├── .gitignore
 └── venv/                        # Virtual environment (not committed)
-
+```
 
 ---
 
