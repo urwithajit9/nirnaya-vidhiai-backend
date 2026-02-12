@@ -1,0 +1,283 @@
+openapi: 3.0.3
+info:
+  title: Nirnaya HS Intelligence API
+  version: 1.0.0
+  description: >
+    AI-powered HS Code classification, search, compliance analysis,
+    and regulatory Q&A engine backed by structured ITC-HS data,
+    vector search, and Qwen LLM reasoning.
+
+servers:
+  - url: https://yourdomain.com/api/v1/hs
+    description: Production
+  - url: http://localhost:8000/api/v1/hs
+    description: Local development
+
+security:
+  - BearerAuth: []
+
+components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+      example:
+        detail: Authentication credentials were not provided.
+
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+      example:
+        error: No valid HS codes found for the given description
+
+    HSCode:
+      type: object
+      properties:
+        hs_code:
+          type: string
+          example: "85076000"
+        description:
+          type: string
+          example: Lithium-ion batteries
+        policy:
+          type: string
+          example: Free
+
+    Prediction:
+      type: object
+      properties:
+        hs_code:
+          type: string
+          example: "85076000"
+        description:
+          type: string
+        policy:
+          type: string
+        confidence:
+          type: number
+          format: float
+          example: 0.91
+        source:
+          type: string
+          example: embedding+llm
+
+    AskSource:
+      type: object
+      properties:
+        content:
+          type: string
+        doc_level:
+          type: string
+          example: notification
+
+paths:
+
+  /predict/:
+    post:
+      summary: Predict HS Code from product description
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - description
+                - schedule_type
+              properties:
+                description:
+                  type: string
+                  example: Lithium ion battery pack for EV
+                schedule_type:
+                  type: string
+                  enum: [import, export]
+                top_k:
+                  type: integer
+                  default: 5
+      responses:
+        "200":
+          description: HS prediction results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  predictions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Prediction"
+                  validated:
+                    type: boolean
+                    example: true
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /analyze/:
+    post:
+      summary: Analyze an HS code for compliance and policy insight
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - hs_code
+                - schedule_type
+              properties:
+                hs_code:
+                  type: string
+                  example: "85076000"
+                schedule_type:
+                  type: string
+                  enum: [import, export]
+      responses:
+        "200":
+          description: HS compliance analysis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hs_code:
+                    type: string
+                  description:
+                    type: string
+                  policy:
+                    type: string
+                  policy_conditions:
+                    type: string
+                  chapter:
+                    type: integer
+                  ai_analysis:
+                    type: string
+        "404":
+          description: HS code not found
+        "401":
+          description: Unauthorized
+
+  /ask/:
+    post:
+      summary: Ask regulatory or compliance question
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - question
+              properties:
+                question:
+                  type: string
+                  example: Is lithium battery import from China restricted?
+      responses:
+        "200":
+          description: Grounded AI answer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  answer:
+                    type: string
+                  sources:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AskSource"
+        "401":
+          description: Unauthorized
+
+  /search/:
+    post:
+      summary: Hybrid search HS codes by query
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+                - schedule_type
+              properties:
+                query:
+                  type: string
+                  example: solar inverter
+                schedule_type:
+                  type: string
+                  enum: [import, export]
+      responses:
+        "200":
+          description: Ranked HS results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/HSCode"
+                  ai_summary:
+                    type: string
+        "401":
+          description: Unauthorized
+
+  /chapter/{chapter_num}/:
+    get:
+      summary: Get chapter codes and AI overview
+      parameters:
+        - in: path
+          name: chapter_num
+          required: true
+          schema:
+            type: integer
+          example: 85
+        - in: query
+          name: schedule_type
+          required: false
+          schema:
+            type: string
+            enum: [import, export]
+            default: import
+      responses:
+        "200":
+          description: Chapter overview and codes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  chapter:
+                    type: integer
+                  overview:
+                    type: string
+                  codes:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/HSCode"
+        "401":
+          description: Unauthorized

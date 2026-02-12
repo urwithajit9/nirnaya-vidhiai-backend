@@ -1,0 +1,298 @@
+openapi: 3.0.3
+info:
+  title: Nirnaya Vidhi AI – HS Intelligence API
+  version: 1.0.0
+  description: |
+    AI-powered HS classification and trade compliance API.
+    Uses:
+      - PostgreSQL (Supabase)
+      - pgvector semantic search
+      - ITC HS Master structured lookup
+      - Qwen 3B (Modal) for grounded reasoning
+    All endpoints require Clerk JWT authentication.
+
+servers:
+  - url: https://api.nirnaya.ai/api/v1/hs
+    description: Production
+  - url: http://localhost:8000/api/v1/hs
+    description: Local Development
+
+security:
+  - ClerkJWT: []
+
+components:
+  securitySchemes:
+    ClerkJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+
+    HSDuties:
+      type: object
+      properties:
+        bcd:
+          type: number
+          format: float
+        igst:
+          type: number
+          format: float
+        sws:
+          type: number
+          format: float
+
+    PolicyStatus:
+      type: string
+      enum: [free, restricted, prohibited]
+
+    HSPrediction:
+      type: object
+      properties:
+        hs_code:
+          type: string
+          example: "85044030"
+        description:
+          type: string
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        duties:
+          $ref: '#/components/schemas/HSDuties'
+        policy_status:
+          $ref: '#/components/schemas/PolicyStatus'
+
+    HSPredictRequest:
+      type: object
+      required:
+        - description
+        - country
+      properties:
+        description:
+          type: string
+        country:
+          type: string
+          example: "CN"
+
+    HSPredictResponse:
+      type: object
+      properties:
+        predictions:
+          type: array
+          items:
+            $ref: '#/components/schemas/HSPrediction'
+        last_updated:
+          type: string
+          format: date-time
+
+    HSAskRequest:
+      type: object
+      required:
+        - question
+      properties:
+        question:
+          type: string
+        schedule_type:
+          type: string
+          enum: [import, export]
+          default: import
+
+    HSAskResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+        sources:
+          type: array
+          items:
+            type: object
+            properties:
+              hs_code:
+                type: string
+              description:
+                type: string
+              policy:
+                type: string
+
+    HSSearchResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              hs_code:
+                type: string
+              description:
+                type: string
+              policy:
+                type: string
+              score:
+                type: number
+
+    HSChapterResponse:
+      type: object
+      properties:
+        chapter:
+          type: integer
+        overview:
+          type: string
+        codes:
+          type: array
+          items:
+            type: object
+            properties:
+              hs_code:
+                type: string
+              description:
+                type: string
+              policy:
+                type: string
+              hs_level:
+                type: integer
+
+    HSAnalyzeRequest:
+      type: object
+      required:
+        - hs_code
+      properties:
+        hs_code:
+          type: string
+          example: "85044030"
+        schedule_type:
+          type: string
+          enum: [import, export]
+          default: import
+
+    HSAnalyzeResponse:
+      type: object
+      properties:
+        hs_code:
+          type: string
+        description:
+          type: string
+        policy:
+          type: string
+        policy_conditions:
+          type: string
+        chapter_num:
+          type: integer
+        ai_analysis:
+          type: string
+
+paths:
+
+  /predict/:
+    post:
+      summary: AI-based HS classification prediction
+      description: |
+        Uses embedding similarity + structured validation.
+        LLM output is validated strictly against itc_hs_master.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HSPredictRequest'
+      responses:
+        200:
+          description: HS predictions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HSPredictResponse'
+        400:
+          description: Invalid input
+        401:
+          description: Unauthorized
+
+  /ask/:
+    post:
+      summary: Ask AI about HS policy
+      description: |
+        Performs:
+          1. pgvector semantic search (knowledge_base)
+          2. Structured lookup (itc_hs_master)
+          3. Grounded LLM reasoning
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HSAskRequest'
+      responses:
+        200:
+          description: AI grounded answer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HSAskResponse'
+
+  /search/:
+    get:
+      summary: Search HS codes
+      description: |
+        Combines:
+          - LIKE query on description
+          - FTS (GIN index)
+          - Embedding similarity
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: schedule_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [import, export]
+      responses:
+        200:
+          description: Ranked HS search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HSSearchResponse'
+
+  /chapter/{chapter_num}/:
+    get:
+      summary: Get HS chapter overview
+      parameters:
+        - name: chapter_num
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Chapter breakdown with AI overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HSChapterResponse'
+
+  /analyze/:
+    post:
+      summary: Deep AI analysis of specific HS code
+      description: |
+        Retrieves structured data from itc_hs_master
+        + optional knowledge_base context
+        + grounded LLM explanation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HSAnalyzeRequest'
+      responses:
+        200:
+          description: Detailed HS analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HSAnalyzeResponse'

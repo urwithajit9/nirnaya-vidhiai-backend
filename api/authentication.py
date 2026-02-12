@@ -5,6 +5,20 @@ from rest_framework.exceptions import AuthenticationFailed
 from django.conf import settings
 
 
+class ClerkUser:
+    def __init__(self, payload):
+        self.payload = payload
+        self.is_authenticated = True
+
+    @property
+    def id(self):
+        return self.payload.get("sub")
+
+    @property
+    def email(self):
+        return self.payload.get("email")
+
+
 class ClerkJWTAuthentication(BaseAuthentication):
 
     def authenticate(self, request):
@@ -28,7 +42,9 @@ class ClerkJWTAuthentication(BaseAuthentication):
                 options={"verify_exp": True},
             )
 
-            return (payload, None)
+            user = ClerkUser(payload)
+
+            return (user, token)
 
         except Exception as e:
             raise AuthenticationFailed(f"Invalid Clerk token: {str(e)}")
