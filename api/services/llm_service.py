@@ -1,6 +1,6 @@
 import os
 import requests
-
+from .prompt_service import system_prompt
 
 class LLMService:
     def __init__(self):
@@ -9,7 +9,7 @@ class LLMService:
 
     def get_reasoning(self, query: str, context: str):
         payload = {
-            "prompt": query,
+            "prompt": system_prompt + "\n\nQuestion:\n" + query,
             "context": context,
             "temperature": 0.1,
             "top_p": 0.9,

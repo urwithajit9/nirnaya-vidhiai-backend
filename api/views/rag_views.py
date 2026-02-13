@@ -17,6 +17,11 @@ class AskView(APIView):
         llm_svc = LLMService()
 
         sources = vector_svc.find_context(query, top_k)
+        if not sources:
+            return Response({
+                "answer": "No relevant information found in the knowledge base.",
+                "sources": []
+            })
         context_str = "\n".join([s["content"] for s in sources])
         answer = llm_svc.get_reasoning(query, context_str)
 

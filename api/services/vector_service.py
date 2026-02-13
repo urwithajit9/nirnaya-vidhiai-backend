@@ -48,31 +48,25 @@ class VectorService:
         model = self.get_model()
         return model.encode(text).tolist()
 
-    def find_context(
-        self, query: str, limit: int = 5, doc_level: str | None = None
-    ) -> List[Dict]:
 
+    def find_context(self, query: str, limit: int = 5) -> List[Dict]:
         embedding = self.embed(query)
+        similarity_threshold = 0.75
 
         sql = """
-            SELECT id, content, doc_level, metadata,
-                   embedding <=> %s::vector AS distance
-            FROM knowledge_base
-            WHERE (effective_date IS NULL OR effective_date <= %s)
-        """
-
-        params = [embedding, date.today()]
-
-        if doc_level:
-            sql += " AND doc_level = %s"
-            params.append(doc_level)
-
-        sql += """
-            ORDER BY embedding <=> %s::vector
+            WITH query_embedding AS (
+                SELECT %s::vector AS qvec
+            )
+            SELECT kb.id, kb.content, kb.doc_level, kb.metadata,
+                kb.embedding <=> q.qvec AS distance
+            FROM knowledge_base kb, query_embedding q
+            WHERE (kb.effective_date IS NULL OR kb.effective_date <= %s)
+            AND kb.embedding <=> q.qvec < %s
+            ORDER BY kb.embedding <=> q.qvec
             LIMIT %s
         """
 
-        params.extend([embedding, limit])
+        params = [embedding, date.today(), similarity_threshold, limit]
 
         with connection.cursor() as cur:
             cur.execute(sql, params)

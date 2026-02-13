@@ -1,0 +1,40 @@
+@startuml
+autonumber
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+
+actor User
+participant "Frontend (React + Vite)\nVercel" as FE
+participant "Clerk Auth" as Clerk
+participant "Django + DRF API\nAWS" as BE
+participant "VectorService\nSentenceTransformers" as VS
+database "Supabase Postgres\npgvector" as DB
+participant "LLM FastAPI\nModal" as LLM
+participant "DeepSeek Model\nContainer" as MODEL
+
+== Authentication Phase ==
+
+User -> FE : Open /chat
+FE -> Clerk : Request Session / JWT
+Clerk --> FE : Return JWT
+
+== Query Phase ==
+
+User -> FE : Enter Question
+FE -> BE : POST /api/v1/ask\nAuthorization: Bearer JWT
+
+BE -> VS : embed(query)
+VS --> BE : embedding vector
+
+BE -> DB : SELECT top_k\nORDER BY embedding <=> query
+DB --> BE : context documents
+
+BE -> LLM : POST /v1/generate\n(prompt + context)
+LLM -> MODEL : generate()
+MODEL --> LLM : answer + metadata
+LLM --> BE : JSON response
+
+BE --> FE : { answer, sources }
+FE --> User : Render response
+
+@enduml
